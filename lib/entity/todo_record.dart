@@ -1,4 +1,5 @@
 import 'package:objectbox/objectbox.dart';
+import 'package:todo_record/time_representation/representation.dart';
 import 'package:todo_record/time_representation/time_limit.dart';
 
 @Entity()
@@ -7,59 +8,65 @@ class TodoItem {
   int id;
 
   String message;
-  @Property(type: PropertyType.int)
-  Priority priority;
-  DeathLineTime timeToEnd;
-  List<TodoGroup> groups;
-
+  int priority;
+  ToOne<DeathLineTime> timeToEnd = ToOne<DeathLineTime>();
+  ToMany<TodoGroup> groups = ToMany<TodoGroup>();
+  int tagsBitmap;
   TodoItem(
       {this.id = 0,
       required this.message,
-      this.priority = Priority.level5,
-      this.groups = const [],
-      required this.timeToEnd});
+      this.priority = 5,
+      required this.groups,
+      required this.timeToEnd,
+      required this.tagsBitmap});
 }
 
-enum Priority {
-  level0,
-  level1,
-  level2,
-  level3,
-  level4,
-  level5,
-  level6,
-  level7,
-  level8,
-  level9,
-}
-
+@Entity()
 class DeathLineTime {
-  TimeMod timeType;
+  @Id()
+  int id;
+
+  int? timeType;
+  int ddlType;
   @Property(type: PropertyType.date)
   DateTime? time;
 
-  DeathLineTime({this.timeType = TimeMod.limitless, this.time}) {
-    switch (timeType) {
-      case TimeMod.deathLine:
-        assert(time != null);
-        break;
-      default:
-        {}
-    }
-    ;
+  DeathLineTime({
+    this.id = 0,
+    required this.ddlType,
+    this.timeType,
+    this.time,
+  }) {
+    assertTimeMod(TimeMod.values[ddlType],
+        timeType == null ? null : TimeType.values[timeType!], time);
   }
 }
 
-class TodoGroup {
-  String? title;
-  List<SubTodo> subTodos;
-
-  TodoGroup(this.title, [this.subTodos = const []]);
+assertTimeMod(TimeMod mod, TimeType? timeType, DateTime? time) {
+  if (mod == TimeMod.deathLine) {
+    assert(time != null);
+    assert(timeType != null);
+  }
 }
 
+@Entity()
+class TodoGroup {
+  @Id()
+  int id;
+  String? title;
+
+  ToMany<SubTodo> subTodos = ToMany();
+
+  TodoGroup({this.id = 0, required this.title, required this.subTodos});
+}
+
+@Entity()
 class SubTodo {
+  @Id()
+  int id;
+
   String content;
   bool isDone;
 
-  SubTodo(this.content, [this.isDone = false]);
+  SubTodo({this.id = 0, required this.content, required this.isDone});
 }
