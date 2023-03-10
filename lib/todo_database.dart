@@ -24,7 +24,25 @@ class Calculator {
 class ObjectBox {
   late final Store store;
 
-  ObjectBox._create(this.store) {}
+  ObjectBox._create(this.store) {
+    // if there is no priority filter, set it
+    var db = ObjectBoxDatabase(this);
+    if (db.getFilter(FilterType.priority).isEmpty) {
+      db.saveFilter(priorityFilter: List.generate(10, (index) => true).asMap());
+    }
+    if (db.getFilter(FilterType.tag).length != db.getTagMap().length) {
+      var filter = db.getFilter(FilterType.tag);
+      db
+          .getTagMap()
+          .entries
+          .where((element) => !filter.containsKey(element.key))
+          .forEach((element) {
+        filter[element.key] = true;
+      });
+
+      db.saveFilter(tagFilter: filter);
+    }
+  }
 
   static Future<ObjectBox> create() async {
     final docsDir = await getApplicationDocumentsDirectory();
@@ -41,9 +59,9 @@ class ObjectBoxDatabase extends Database {
   ObjectBoxDatabase(this.objectBox);
 
   @override
-  Future<List<ContainId<TodoRecord>>> findAllTodoRecord(
-      {Map<dynamic, dynamic> filter = const {}}) async {
-    var tagSet = (await getTagMap()).keys.toSet();
+  List<ContainId<TodoRecord>> findAllTodoRecord(
+      {Map<dynamic, dynamic> filter = const {}}) {
+    var tagSet = (getTagMap()).keys.toSet();
     final itemBox = objectBox.store.box<TodoItem>();
     var todos = itemBox.getAll().map((todoItem) {
       // groups
@@ -104,7 +122,7 @@ class ObjectBoxDatabase extends Database {
   }
 
   @override
-  Future<Map<int, bool>> getFilter(FilterType type) async {
+  Map<int, bool> getFilter(FilterType type) {
     final filterBox = objectBox.store.box<FilterRecord>();
 
     var query = (filterBox.query(FilterRecord_.type.equals(type.index))
@@ -119,7 +137,7 @@ class ObjectBoxDatabase extends Database {
   }
 
   @override
-  Future<TagMap> getTagMap() async {
+  TagMap getTagMap() {
     final tagBox = objectBox.store.box<TagStore>();
 
     var map = tagBox
@@ -132,8 +150,7 @@ class ObjectBoxDatabase extends Database {
   }
 
   @override
-  Future<void> saveFilter(
-      {Map<int, bool>? priorityFilter, Map<int, bool>? tagFilter}) async {
+  saveFilter({Map<int, bool>? priorityFilter, Map<int, bool>? tagFilter}) {
     final filterBox = objectBox.store.box<FilterRecord>();
     if (priorityFilter != null) {
       var old = filterBox
@@ -164,7 +181,7 @@ class ObjectBoxDatabase extends Database {
           .toList();
       filterBox.removeMany(old);
 
-      var tagSet = (await getTagMap()).keys.toSet();
+      var tagSet = (getTagMap()).keys.toSet();
       var filters = tagFilter.entries.map((e) {
         assert(tagSet.contains(e.key));
         return FilterRecord(
@@ -176,7 +193,7 @@ class ObjectBoxDatabase extends Database {
   }
 
   @override
-  Future<void> saveTag({required Tag tag}) async {
+  saveTag({required Tag tag}) {
     final tagBox = objectBox.store.box<TagStore>();
     tagBox.put(TagStore(tagId: tag.id, msg: tag.msg));
   }
